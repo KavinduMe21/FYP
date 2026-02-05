@@ -12,6 +12,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 app = FastAPI()
 
@@ -24,6 +26,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 # -----------------------------
+
+# Serve frontend static files
+frontend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'frontend'))
+if os.path.exists(frontend_dir):
+    app.mount("/static", StaticFiles(directory=frontend_dir), name="static")
 
 # 1. Load Model
 src_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src'))
@@ -125,6 +132,10 @@ async def detect_knock_on(file: UploadFile = File(...)):
 
 @app.get("/")
 def root():
+    """Serve the frontend HTML"""
+    frontend_path = os.path.join(os.path.dirname(__file__), '..', 'frontend', 'index.html')
+    if os.path.exists(frontend_path):
+        return FileResponse(frontend_path)
     return {"message": "Ball Detection API is running"}
 
 if __name__ == "__main__":

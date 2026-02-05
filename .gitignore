@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual Environment
+myenv/
+venv/
+env/
+ENV/
+.venv
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# PyCharm
+.idea/
+
+# VS Code
+.vscode/
+
+# Model files (optional - uncomment if models are too large)
+# *.pt
+# *.joblib
+# *.pkl
+
+# Data files
+data_processed/
+*.mp4
+*.avi
+*.mov
+
+# OS
+.DS_Store
+Thumbs.db
+*.log
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# Uploaded files
+uploads/
+temp/

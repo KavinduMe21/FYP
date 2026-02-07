@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rugby Knock-On Detector</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            max-width: 900px;
+            width: 100%;
+            padding: 3rem;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 1rem;
+            font-size: 2.5rem;
+            text-align: center;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 2rem;
+            font-size: 1.1rem;
+        }
+
+        .upload-section {
+            margin-bottom: 2rem;
+        }
+
+        input[type="file"] {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            border: 2px dashed #667eea;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        input[type="file"]:hover {
+            border-color: #764ba2;
+            background: #f8f9ff;
+        }
+
+        button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 1rem;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 2rem 0;
+            font-size: 1.1rem;
+            color: #667eea;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 1rem auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #result {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            border-radius: 10px;
+            font-size: 1.1rem;
+        }
+
+        .success {
+            background: #d4edda;
+            border: 2px solid #28a745;
+            color: #155724;
+        }
+
+        .failure {
+            background: #f8d7da;
+            border: 2px solid #dc3545;
+            color: #721c24;
+        }
+
+        .result-details {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: rgba(0,0,0,0.05);
+            border-radius: 8px;
+        }
+
+        #preview {
+            display: none;
+            margin-top: 2rem;
+            text-align: center;
+        }
+
+        #preview h3 {
+            color: #333;
+            margin-bottom: 1rem;
+        }
+
+        #evidenceImage {
+            max-width: 100%;
+            border: 3px solid #667eea;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .api-status {
+            text-align: center;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            font-size: 0.9rem;
+        }
+
+        .api-status.checking {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .api-status.online {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .api-status.offline {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🏉 Rugby Knock-On Detector</h1>
+    <p class="subtitle">Upload a rugby video to detect knock-on events using AI</p>
+    
+    <div id="apiStatus" class="api-status checking">
+        🔄 Checking API connection...
+    </div>
+
+    <div class="upload-section">
+        <input type="file" id="videoInput" accept="video/mp4,video/avi,video/mov" />
+        <button onclick="uploadVideo()" id="uploadBtn">🔍 Analyze Video</button>
+    </div>
+
+    <div id="loading" class="loading">
+        <div class="spinner"></div>
+        <p>⏳ Processing video... This may take a few moments.</p>
+    </div>
+
+    <div id="result"></div>
+    
+    <div id="preview">
+        <h3>📸 Evidence Frame:</h3>
+        <img id="evidenceImage" src="" alt="Detected Frame" />
+    </div>
+</div>
+
+<script>
+    // IMPORTANT: Replace this with your Hugging Face Space URL
+    const API_URL = 'YOUR_HUGGING_FACE_SPACE_URL';  // e.g., 'https://username-rugby-detector.hf.space'
+
+    // Check API health on page load
+    async function checkAPIHealth() {
+        const statusDiv = document.getElementById('apiStatus');
+        try {
+            const response = await fetch(`${API_URL}/health`);
+            const data = await response.json();
+            
+            if (data.status === 'healthy' && data.model_loaded) {
+                statusDiv.className = 'api-status online';
+                statusDiv.innerHTML = '✅ API Connected & Model Ready';
+            } else {
+                statusDiv.className = 'api-status offline';
+                statusDiv.innerHTML = '⚠️ API Connected but Model Not Loaded';
+            }
+        } catch (error) {
+            statusDiv.className = 'api-status offline';
+            statusDiv.innerHTML = '❌ Cannot Connect to API - Please check the API_URL in the code';
+            console.error('API Health Check Failed:', error);
+        }
+    }
+
+    async function uploadVideo() {
+        const fileInput = document.getElementById('videoInput');
+        const resultDiv = document.getElementById('result');
+        const img = document.getElementById('evidenceImage');
+        const previewDiv = document.getElementById('preview');
+        const btn = document.getElementById('uploadBtn');
+        const loading = document.getElementById('loading');
+        
+        if (fileInput.files.length === 0) {
+            alert("Please select a video file first!");
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+
+        // UI Updates
+        btn.disabled = true;
+        loading.style.display = "block";
+        resultDiv.innerHTML = "";
+        resultDiv.className = "";
+        previewDiv.style.display = "none";
+
+        try {
+            const response = await fetch(`${API_URL}/detect`, {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+            console.log('Detection Result:', data);
+            
+            loading.style.display = "none";
+            btn.disabled = false;
+
+            if (data.error) {
+                resultDiv.className = "failure";
+                resultDiv.innerHTML = `
+                    <p><strong>❌ Error:</strong> ${data.error}</p>
+                `;
+            } else if (data.event_detected) {
+                resultDiv.className = "success";
+                resultDiv.innerHTML = `
+                    <p><strong>✅ Knock-on / Ball Event Detected!</strong></p>
+                    <div class="result-details">
+                        <p>📊 <strong>Total Frames:</strong> ${data.total_frames}</p>
+                        <p>🎯 <strong>Frames Processed:</strong> ${data.frames_processed}</p>
+                        <p>🏉 <strong>Detections Found:</strong> ${data.detections_count} frames</p>
+                        <p>⏱️ <strong>First Detection:</strong> Frame ${data.first_detection_frame}</p>
+                    </div>
+                `;
+                
+                if (data.detected_image) {
+                    img.src = "data:image/jpeg;base64," + data.detected_image;
+                    previewDiv.style.display = "block";
+                }
+            } else {
+                resultDiv.className = "failure";
+                resultDiv.innerHTML = `
+                    <p><strong>❌ No Event Detected</strong></p>
+                    <div class="result-details">
+                        <p>📊 <strong>Total Frames Analyzed:</strong> ${data.total_frames}</p>
+                        <p>🎯 <strong>Frames Processed:</strong> ${data.frames_processed}</p>
+                        <p>${data.message || 'No knock-on events were found in this video.'}</p>
+                    </div>
+                `;
+            }
+
+        } catch (error) {
+            console.error('Upload Error:', error);
+            loading.style.display = "none";
+            btn.disabled = false;
+            resultDiv.className = "failure";
+            resultDiv.innerHTML = `
+                <p><strong>❌ Error Connecting to API</strong></p>
+                <p>Please ensure the backend is running and the API_URL is correct.</p>
+                <p style="font-size: 0.9rem; margin-top: 1rem; opacity: 0.8;">Error: ${error.message}</p>
+            `;
+        }
+    }
+
+    // Check API health when page loads
+    window.addEventListener('load', checkAPIHealth);
+</script>
+
+</body>
+</html>

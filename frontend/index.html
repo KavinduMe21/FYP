@@ -59,7 +59,8 @@
 
         try {
             // Use relative URL so it works on deployed server
-            const response = await fetch('/detect', {
+            // const response = await fetch('http://127.0.0.1:8000/detect', {
+                const response = await fetch('/detect', {
                 method: 'POST',
                 body: formData
             });

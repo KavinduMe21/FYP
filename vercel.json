@@ -1,0 +1,13 @@
+{
+  "buildCommand": null,
+  "outputDirectory": "frontend",
+  "devCommand": null,
+  "installCommand": null,
+  "framework": null,
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/index_vercel.html"
+    }
+  ]
+}

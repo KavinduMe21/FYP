@@ -72,7 +72,16 @@ async def detect_knock_on(file: UploadFile = File(...)):
     try:
         cap = cv2.VideoCapture(temp_filename)
         
+        # Get video properties
+        fps = int(cap.get(cv2.CAP_PROP_FPS))
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        
+        # OPTIMIZATION: Process every Nth frame instead of all frames
+        # For 30fps video, process every 5th frame = 6fps (still plenty for detection)
+        frame_skip = max(1, fps // 6)  # Process ~6 frames per second
+        
         frame_count = 0
+        frames_processed = 0
         detections_found = []
         detected_image_base64 = None
         
@@ -82,6 +91,12 @@ async def detect_knock_on(file: UploadFile = File(...)):
                 break
             
             frame_count += 1
+            
+            # Skip frames for faster processing
+            if frame_count % frame_skip != 0:
+                continue
+            
+            frames_processed += 1
             
             # conf=0.25 is standard, lower if detection is missed
             results = model(frame, conf=0.25, verbose=False, classes=target_classes)
@@ -106,8 +121,14 @@ async def detect_knock_on(file: UploadFile = File(...)):
                     
                     _, buffer = cv2.imencode('.jpg', annotated_frame)
                     detected_image_base64 = base64.b64encode(buffer).decode('utf-8')
+                    
+                    # OPTIMIZATION: Stop after first detection for faster response
+                    # Remove this break if you want to scan entire video
+                    break
 
         cap.release()
+        
+        print(f"Processed {frames_processed} out of {total_frames} frames (skipped {frame_skip-1} of every {frame_skip} frames)")
         
         # 3. Return Results
         is_knock_on = len(detections_found) > 0 
@@ -137,6 +158,15 @@ def root():
     if os.path.exists(frontend_path):
         return FileResponse(frontend_path)
     return {"message": "Ball Detection API is running"}
+
+@app.get("/health")
+def health_check():
+    """Health check endpoint - prevents cold starts"""
+    return {
+        "status": "healthy",
+        "model_loaded": model is not None,
+        "model_classes": list(model.names.values()) if model else []
+    }
 
 if __name__ == "__main__":
     import uvicorn

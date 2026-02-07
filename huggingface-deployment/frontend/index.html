@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Knock-on Detector</title>
+    <style>
+        body { font-family: sans-serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
+        .container { border: 1px solid #ccc; padding: 2rem; border-radius: 8px; }
+        #preview { margin-top: 20px; text-align: center; }
+        img { max-width: 100%; border: 2px solid #333; margin-top: 10px; }
+        .success { color: green; font-weight: bold; }
+        .failure { color: red; font-weight: bold; }
+        button { padding: 10px 20px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 4px; }
+        button:disabled { background: #ccc; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🏈 Knock-on Detection Upload</h1>
+    <p>Select a video file to check for a knock-on event.</p>
+    
+    <input type="file" id="videoInput" accept="video/mp4,video/avi" />
+    <br><br>
+    <button onclick="uploadVideo()" id="uploadBtn">Analyze Video</button>
+    <div id="loading" style="display:none;">⏳ Processing video... please wait.</div>
+
+    <div id="result" style="margin-top: 20px;"></div>
+    
+    <div id="preview" style="display:none;">
+        <h3>Evidence Frame:</h3>
+        <img id="evidenceImage" src="" alt="Detected Frame" />
+    </div>
+</div>
+
+<script>
+    async function uploadVideo() {
+        const fileInput = document.getElementById('videoInput');
+        const resultDiv = document.getElementById('result');
+        const img = document.getElementById('evidenceImage');
+        const previewDiv = document.getElementById('preview');
+        const btn = document.getElementById('uploadBtn');
+        const loading = document.getElementById('loading');
+        
+        if (fileInput.files.length === 0) {
+            alert("Please select a file first!");
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+
+        // UI Updates
+        btn.disabled = true;
+        loading.style.display = "block";
+        resultDiv.innerHTML = "";
+        previewDiv.style.display = "none";
+
+        try {
+            // Use relative URL so it works on deployed server
+            // const response = await fetch('http://127.0.0.1:8000/detect', {
+                const response = await fetch('/detect', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+            console.log(data,"data");
+            
+            
+            loading.style.display = "none";
+            btn.disabled = false;
+
+            if (data.event_detected) {
+                resultDiv.innerHTML = `<p class="success">✅ Knock-on / Ball Event Detected!</p>
+                                       <p>Total Frames: ${data.total_frames}</p>`;
+                
+                if (data.detected_image) {
+                    // This is how we display the Base64 image
+                    img.src = "data:image/jpeg;base64," + data.detected_image;
+                    previewDiv.style.display = "block";
+                }
+            } else {
+                resultDiv.innerHTML = `<p class="failure">❌ No event detected.</p>`;
+            }
+
+        } catch (error) {
+            console.error(error);
+            loading.style.display = "none";
+            btn.disabled = false;
+            resultDiv.innerHTML = `<p class="failure">Error connecting to API.</p>`;
+        }
+    }
+</script>
+
+</body>
+</html>

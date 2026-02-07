@@ -6,6 +6,7 @@ import shutil
 from ultralytics import YOLO
 from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 
 app = FastAPI()
 
@@ -36,6 +37,10 @@ else:
 
 @app.get("/")
 async def root():
+    """Serve the frontend HTML"""
+    frontend_path = os.path.join('frontend', 'index.html')
+    if os.path.exists(frontend_path):
+        return FileResponse(frontend_path)
     return {"message": "Rugby Knock-On Detector API is running", "status": "healthy"}
 
 @app.get("/health")

@@ -5,7 +5,7 @@ from ultralytics import YOLO
 from src.config import DATASET_DIR, BASE_DIR
 
 def main():
-    parser = argparse.ArgumentParser(description='Detect Knock-on with YOLOv8')
+    parser = argparse.ArgumentParser(description=None)
     parser.add_argument('--video', type=str, help='Path to video file', default=None)
     parser.add_argument('--model', type=str, help='Path to YOLO model', default=None)
     parser.add_argument('--conf', type=float, help='Confidence threshold', default=0.25)
@@ -101,7 +101,6 @@ def main():
 
         annotated_frame = results[0].plot()
         
-        # Resize frame to fit the window while maintaining aspect ratio
         h, w = annotated_frame.shape[:2]
         aspect = w / h
         if aspect > display_width / display_height:

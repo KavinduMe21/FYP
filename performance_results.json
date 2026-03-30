@@ -1,0 +1,85 @@
+{
+  "response_times": [
+    {
+      "name": "87.mp4",
+      "label": "knock_on",
+      "avg_time": 2.3099960333202034,
+      "min_time": 2.091020999941975,
+      "max_time": 2.6175981999840587,
+      "frames": 182,
+      "detected": true,
+      "file_size_mb": 15.174243927001953
+    },
+    {
+      "name": "Knock.mp4",
+      "label": "knock_on",
+      "avg_time": 4.1085756667113555,
+      "min_time": 4.020300900097936,
+      "max_time": 4.189143199939281,
+      "frames": 160,
+      "detected": false,
+      "file_size_mb": 13.247093200683594
+    },
+    {
+      "name": "knock 1.mp4",
+      "label": "knock_on",
+      "avg_time": 2.502342899950842,
+      "min_time": 2.341602599946782,
+      "max_time": 2.721241099992767,
+      "frames": 157,
+      "detected": true,
+      "file_size_mb": 12.342774391174316
+    },
+    {
+      "name": "61.mp4",
+      "label": "no_knock_on",
+      "avg_time": 2.7013777000053474,
+      "min_time": 2.677002100041136,
+      "max_time": 2.7296186999883503,
+      "frames": 116,
+      "detected": false,
+      "file_size_mb": 9.754963874816895
+    },
+    {
+      "name": "normal  73.mp4",
+      "label": "no_knock_on",
+      "avg_time": 3.479426266703134,
+      "min_time": 3.4756338000297546,
+      "max_time": 3.48560250014998,
+      "frames": 151,
+      "detected": false,
+      "file_size_mb": 12.376871109008789
+    },
+    {
+      "name": "normal 1.mp4",
+      "label": "no_knock_on",
+      "avg_time": 4.087754533315699,
+      "min_time": 4.082775499904528,
+      "max_time": 4.094070499995723,
+      "frames": 176,
+      "detected": false,
+      "file_size_mb": 14.469383239746094
+    }
+  ],
+  "throughput": {
+    "videos_processed": 6,
+    "total_time": 18.772762999869883,
+    "throughput_per_sec": 0.3196119825324374
+  },
+  "security": {
+    "passed": 4,
+    "total": 4
+  },
+  "consistency": {
+    "consistent": true,
+    "results": [
+      true,
+      true,
+      true
+    ]
+  },
+  "response_format": {
+    "passed": 11,
+    "total": 11
+  }
+}

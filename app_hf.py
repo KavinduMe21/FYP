@@ -6,7 +6,6 @@ import shutil
 from ultralytics import YOLO
 from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
 
 app = FastAPI()
 
@@ -34,22 +33,6 @@ if os.path.exists(model_path):
         print(f"Filtering for ball classes: {target_classes}")
 else:
     print("Warning: No model found at", model_path)
-
-@app.get("/")
-async def root():
-    """Serve the frontend HTML"""
-    frontend_path = os.path.join('frontend', 'index.html')
-    if os.path.exists(frontend_path):
-        return FileResponse(frontend_path)
-    return {"message": "Rugby Knock-On Detector API is running", "status": "healthy"}
-
-@app.get("/health")
-async def health_check():
-    return {
-        "status": "healthy",
-        "model_loaded": model is not None,
-        "model_path": model_path
-    }
 
 @app.post("/detect")
 async def detect_knock_on(file: UploadFile = File(...)):

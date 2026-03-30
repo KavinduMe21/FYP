@@ -231,7 +231,7 @@ async def detect_knock_on(file: UploadFile = File(...), api_key: str = Depends(v
         frame_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
         # ── Sliding window settings (same as inference.py) ─────────
-        BUFFER_SIZE = 16
+        BUFFER_SIZE = 24
         STRIDE = 4
         COOLDOWN_MAX = 90
         THRESHOLD = 0.85

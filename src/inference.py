@@ -1,29 +1,3 @@
-"""
-inference.py — Combined YOLO + R3D-18 Knock-On Detection Pipeline
-==================================================================
-Two-stage pipeline:
-  Stage 1: YOLO ball detector tracks the ball every frame
-  Stage 2: R3D-18 classifies the 16-frame clip as knock_on / normal_play
-
-A knock-on is only flagged when BOTH conditions are met:
-  1. R3D-18 confidence >= threshold  (motion looks like a knock-on)
-  2. YOLO ball tracker confirms ball was visible then dropped toward
-     the ground (ball y-position increases = falling) or disappeared
-
-This drastically reduces false positives like normal passes where the
-ball stays in play.
-
-Usage:
-    python inference.py                              # file-picker popup
-    python inference.py --video path/to/match.mp4    # direct path
-    python inference.py --video match.mp4 --save     # save annotated video
-
-Controls (when the video window is open):
-    Q     → Quit
-    S     → Save the current 16-frame knock-on clip
-    SPACE → Skip / continue
-"""
-
 import os
 import sys
 import argparse
@@ -373,7 +347,7 @@ def main():
         print(f"Saving annotated video to: {out_path}")
 
     # ── Sliding window buffers ─────────────────────────────────────
-    BUFFER_SIZE  = 16
+    BUFFER_SIZE  = 24
     STRIDE       = 4       # classify every 4 frames
     COOLDOWN_MAX = 90      # frames to wait between detections
 

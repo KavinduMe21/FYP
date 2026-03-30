@@ -1,21 +1,3 @@
-"""
-train.py — Training & Validation Loop for Knock-On Classifier
-==============================================================
-Trains the R3D-18 model on 16-frame rugby clips using transfer learning.
-
-Usage:
-    python train.py                         # defaults
-    python train.py --epochs 30 --bs 4      # custom settings
-    python train.py --val-split 0.25        # 25 % validation
-
-The script:
-  1. Loads clips from knock_on_dataset/ via dataset.py
-  2. Splits them into train / val sets (80/20 by default)
-  3. Trains R3D-18 with Adam optimiser + CrossEntropyLoss
-  4. Prints per-epoch metrics (loss, accuracy, precision, recall)
-  5. Saves the best model to  src/knock_on_classifier.pt
-"""
-
 import os
 import argparse
 import time

@@ -1,26 +1,3 @@
-"""
-dataset.py — PyTorch Dataset for Rugby Knock-On Video Classification
-=====================================================================
-Loads short rugby video clips from disk and prepares 16-frame sequences
-for training / validation.
-
-Directory layout expected:
-    knock_on_dataset/
-        knock_on/       ← class 1
-            clip1.mp4
-            clip2.mp4
-        no_knock_on/    ← class 0  (a.k.a. normal_play)
-            clip1.mp4
-            clip2.mp4
-
-Each clip is ~2-3 seconds long.  This module:
-  1. Reads every .mp4 in both folders.
-  2. Uniformly samples exactly `frames_per_clip` frames.
-  3. Resizes each frame to 224 × 224.
-  4. Optionally applies spatial + colour augmentations.
-  5. Returns tensors shaped (C, T, H, W) — ready for R3D-18.
-"""
-
 import os
 import cv2
 import random

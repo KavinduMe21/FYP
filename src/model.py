@@ -20,24 +20,6 @@ import torchvision.models.video as video_models
 
 
 def create_model(num_classes=2, pretrained=True, freeze_early=True):
-    """
-    Build an R3D-18 model for binary video classification.
-
-    Parameters
-    ----------
-    num_classes : int
-        Number of output classes (2 for knock_on vs normal_play).
-    pretrained : bool
-        If True, load Kinetics-400 pre-trained weights.
-    freeze_early : bool
-        If True, freeze stem + layer1 + layer2 so only layer3, layer4,
-        and the classifier head are trained.  This speeds up training
-        and prevents overfitting on a small dataset.
-
-    Returns
-    -------
-    model : nn.Module
-    """
     # Load the pre-trained R3D-18
     if pretrained:
         weights = video_models.R3D_18_Weights.DEFAULT

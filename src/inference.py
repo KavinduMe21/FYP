@@ -55,7 +55,7 @@ def load_ball_detector(yolo_path):
 
 
 def detect_ball(yolo, frame, ball_ids, conf=0.25):
-    # best ball detection -> (cx, cy, w, h, conf) or None
+    # best ball detection -> (cx, cy, w, h, conf) or None.
     results = yolo(frame, conf=conf, verbose=False, classes=ball_ids)
     boxes = results[0].boxes
     if len(boxes) == 0:

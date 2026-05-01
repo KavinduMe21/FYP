@@ -171,7 +171,7 @@ def main():
     parser.add_argument("--bs", type=int, default=4, help="Batch size")
     parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
     parser.add_argument("--folds", type=int, default=5, help="K-Fold splits")
-    parser.add_argument("--frames", type=int, default=16, help="Frames per clip")
+    parser.add_argument("--frames", type=int, default=24, help="Frames per clip")
     args = parser.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

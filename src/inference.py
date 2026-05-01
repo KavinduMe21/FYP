@@ -330,35 +330,20 @@ def main():
 
             if confidence >= args.threshold:
                 if use_ball_check:
-                    # high conf -> skip ball check
-                    if confidence >= 0.90:
+                    # always verify with ball drop
+                    is_drop, ball_reason = check_ball_drop(
+                        list(ball_buffer), frame_h
+                    )
+                    if is_drop:
                         knock_on = True
                         cooldown = COOLDOWN_MAX
-                        ball_reason = "high_confidence"
                         events.append({
                             "frame": frame_count,
                             "confidence": confidence,
                             "ball_reason": ball_reason,
                         })
                         print(f"\n  KNOCK-ON at frame {frame_count}  "
-                              f"(conf {confidence:.0%}, skipped ball check)")
-                    else:
-                        # borderline, verify with ball drop
-                        is_drop, ball_reason = check_ball_drop(
-                            list(ball_buffer), frame_h
-                        )
-                        if is_drop:
-                            knock_on = True
-                            cooldown = COOLDOWN_MAX
-                            events.append({
-                                "frame": frame_count,
-                                "confidence": confidence,
-                                "ball_reason": ball_reason,
-                            })
-                            print(f"\n  KNOCK-ON at frame {frame_count}  "
-                                  f"(conf {confidence:.0%}, ball: {ball_reason})")
-                        else:
-                            pass
+                              f"(conf {confidence:.0%}, ball: {ball_reason})")
                 else:
                     knock_on = True
                     cooldown = COOLDOWN_MAX

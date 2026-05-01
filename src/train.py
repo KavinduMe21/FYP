@@ -19,18 +19,13 @@ from dataset import RugbyClipDataset, CLASS_NAMES
 from model import create_model
 
 
-# ── Paths ──────────────────────────────────────────────────────────
 BASE_DIR   = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR   = os.path.join(BASE_DIR, "..", "knock_on_dataset")
 SAVE_PATH  = os.path.join(BASE_DIR, "knock_on_classifier.pt")
 PLOT_DIR   = os.path.join(BASE_DIR, "..", "training_plots")
 
 
-# ═══════════════════════════════════════════════════════════════════
-#  Metrics helpers
-# ═══════════════════════════════════════════════════════════════════
 def compute_metrics(all_preds, all_labels):
-    """Compute accuracy, precision, and recall for the knock_on class."""
     correct = sum(p == l for p, l in zip(all_preds, all_labels))
     accuracy = correct / len(all_labels) if all_labels else 0
 
@@ -39,21 +34,18 @@ def compute_metrics(all_preds, all_labels):
     fn = sum(1 for p, l in zip(all_preds, all_labels) if p == 0 and l == 1)
 
     precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
-    recall    = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+    recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
 
     return accuracy, precision, recall
 
 
-# ═══════════════════════════════════════════════════════════════════
-#  Training one epoch
-# ═══════════════════════════════════════════════════════════════════
 def train_one_epoch(model, loader, criterion, optimizer, device):
     model.train()
     running_loss = 0.0
     all_preds, all_labels = [], []
 
     for clips, labels in loader:
-        clips  = clips.to(device)
+        clips = clips.to(device)
         labels = labels.to(device)
 
         optimizer.zero_grad()
@@ -72,9 +64,6 @@ def train_one_epoch(model, loader, criterion, optimizer, device):
     return epoch_loss, accuracy, precision, recall
 
 
-# ═══════════════════════════════════════════════════════════════════
-#  Validation
-# ═══════════════════════════════════════════════════════════════════
 @torch.no_grad()
 def validate(model, loader, criterion, device):
     model.eval()
@@ -82,13 +71,12 @@ def validate(model, loader, criterion, device):
     all_preds, all_labels, all_probs = [], [], []
 
     for clips, labels in loader:
-        clips  = clips.to(device)
+        clips = clips.to(device)
         labels = labels.to(device)
 
         outputs = model(clips)
         loss = criterion(outputs, labels)
-
-        probs = torch.softmax(outputs, dim=1)[:, 1]  # P(knock_on)
+        probs = torch.softmax(outputs, dim=1)[:, 1]
 
         running_loss += loss.item() * clips.size(0)
         _, preds = outputs.max(1)
@@ -101,9 +89,6 @@ def validate(model, loader, criterion, device):
     return epoch_loss, accuracy, precision, recall, all_preds, all_labels, all_probs
 
 
-# ═══════════════════════════════════════════════════════════════════
-#  Visualization helpers
-# ═══════════════════════════════════════════════════════════════════
 def plot_confusion_matrix(all_preds, all_labels):
     cm = confusion_matrix(all_labels, all_preds)
     disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=CLASS_NAMES)
@@ -113,44 +98,87 @@ def plot_confusion_matrix(all_preds, all_labels):
     plt.tight_layout()
     plt.savefig(os.path.join(PLOT_DIR, "confusion_matrix.png"), dpi=150)
     plt.close()
-    print("  -> Saved confusion_matrix.png")
+    print("Saved confusion_matrix.png")
 
 
 def plot_roc_curve(all_labels, all_probs):
     fpr, tpr, _ = roc_curve(all_labels, all_probs)
     roc_auc = auc(fpr, tpr)
+
     plt.figure(figsize=(8, 7))
     plt.plot(fpr, tpr, color="darkorange", lw=2, label=f"ROC curve (AUC = {roc_auc:.4f})")
     plt.plot([0, 1], [0, 1], color="navy", lw=1, linestyle="--", label="Random (AUC = 0.5)")
-    plt.xlim([0.0, 1.0]); plt.ylim([0.0, 1.05])
-    plt.xlabel("False Positive Rate"); plt.ylabel("True Positive Rate")
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel("False Positive Rate")
+    plt.ylabel("True Positive Rate")
     plt.title("ROC Curve - Knock-On Detection (All Folds)")
-    plt.legend(loc="lower right"); plt.grid(True, alpha=0.3); plt.tight_layout()
+    plt.legend(loc="lower right")
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
     plt.savefig(os.path.join(PLOT_DIR, "roc_curve.png"), dpi=150)
     plt.close()
-    print(f"  -> Saved roc_curve.png  (AUC = {roc_auc:.4f})")
+    print(f"Saved roc_curve.png  (AUC = {roc_auc:.4f})")
     return roc_auc
 
 
-# ═══════════════════════════════════════════════════════════════════
-#  Main
-# ═══════════════════════════════════════════════════════════════════
+def _plot_fold_curves(history, fold_idx):
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
+
+    ax1.plot(history["epoch"], history["train_loss"], label="Train Loss", marker="o", markersize=2)
+    ax1.plot(history["epoch"], history["val_loss"], label="Val Loss", marker="s", markersize=2)
+    ax1.set_xlabel("Epoch")
+    ax1.set_ylabel("Loss")
+    ax1.set_title(f"Fold {fold_idx} - Loss")
+    ax1.legend()
+    ax1.grid(True, alpha=0.3)
+
+    ax2.plot(history["epoch"], history["train_acc"], label="Train Acc", marker="o", markersize=2)
+    ax2.plot(history["epoch"], history["val_acc"], label="Val Acc", marker="s", markersize=2)
+    ax2.set_xlabel("Epoch")
+    ax2.set_ylabel("Accuracy")
+    ax2.set_title(f"Fold {fold_idx} - Accuracy")
+    ax2.legend()
+    ax2.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(PLOT_DIR, f"fold_{fold_idx}_curves.png"), dpi=150)
+    plt.close()
+    print(f"Saved fold_{fold_idx}_curves.png")
+
+
+class _SubsetWithAugment(torch.utils.data.Dataset):
+
+    def __init__(self, full_dataset, indices, augment):
+        self.full_dataset = full_dataset
+        self.indices = indices
+        self.augment = augment
+
+    def __len__(self):
+        return len(self.indices)
+
+    def __getitem__(self, idx):
+        original = self.full_dataset.augment
+        self.full_dataset.augment = self.augment
+        item = self.full_dataset[self.indices[idx]]
+        self.full_dataset.augment = original
+        return item
+
+
 def main():
     parser = argparse.ArgumentParser(description="Train Knock-On Video Classifier")
-    parser.add_argument("--epochs",    type=int,   default=20,    help="Number of training epochs")
-    parser.add_argument("--bs",        type=int,   default=4,     help="Batch size")
-    parser.add_argument("--lr",        type=float, default=1e-4,  help="Learning rate")
-    parser.add_argument("--folds",     type=int,   default=5,     help="Number of K-Fold CV splits")
-    parser.add_argument("--frames",    type=int,   default=16,    help="Frames per clip")
+    parser.add_argument("--epochs", type=int, default=20, help="Number of training epochs")
+    parser.add_argument("--bs", type=int, default=4, help="Batch size")
+    parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
+    parser.add_argument("--folds", type=int, default=5, help="K-Fold splits")
+    parser.add_argument("--frames", type=int, default=16, help="Frames per clip")
     args = parser.parse_args()
 
-    # ── Device ─────────────────────────────────────────────────────
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device: {device}")
     if device.type == "cuda":
-        print(f"GPU   : {torch.cuda.get_device_name(0)}")
+        print(f"GPU: {torch.cuda.get_device_name(0)}")
 
-    # ── Dataset ────────────────────────────────────────────────────
     full_dataset = RugbyClipDataset(
         root_dir=DATA_DIR,
         frames_per_clip=args.frames,
@@ -158,16 +186,15 @@ def main():
         augment=False,
     )
     if len(full_dataset) == 0:
-        print("ERROR: No video clips found.  Check knock_on_dataset/ folder.")
+        print("ERROR: No video clips found. Check knock_on_dataset/ folder.")
         return
 
-    # Extract labels for stratified splitting
     all_labels = [label for _, label in full_dataset.samples]
 
-    # ── Stratified K-Fold Cross-Validation ─────────────────────────
+    # k-fold
     skf = StratifiedKFold(n_splits=args.folds, shuffle=True, random_state=42)
 
-    fold_results = []   # collect per-fold metrics
+    fold_results = []
     all_fold_preds, all_fold_labels, all_fold_probs = [], [], []
 
     for fold_idx, (train_indices, val_indices) in enumerate(skf.split(np.zeros(len(all_labels)), all_labels), 1):
@@ -175,25 +202,23 @@ def main():
         print(f"  FOLD {fold_idx} / {args.folds}")
         print(f"{'#'*70}")
 
-        # Build fold dataloaders with augmentation toggle
         train_dataset = _SubsetWithAugment(full_dataset, train_indices.tolist(), augment=True)
-        val_dataset   = _SubsetWithAugment(full_dataset, val_indices.tolist(),   augment=False)
+        val_dataset = _SubsetWithAugment(full_dataset, val_indices.tolist(), augment=False)
 
         train_loader = DataLoader(train_dataset, batch_size=args.bs, shuffle=True,
                                   num_workers=0, pin_memory=True)
-        val_loader   = DataLoader(val_dataset,   batch_size=args.bs, shuffle=False,
-                                  num_workers=0, pin_memory=True)
+        val_loader = DataLoader(val_dataset, batch_size=args.bs, shuffle=False,
+                                num_workers=0, pin_memory=True)
 
         train_ko = sum(1 for i in train_indices if all_labels[i] == 1)
-        val_ko   = sum(1 for i in val_indices   if all_labels[i] == 1)
+        val_ko = sum(1 for i in val_indices if all_labels[i] == 1)
         print(f"  Train: {len(train_dataset)} clips ({train_ko} knock_on)")
-        print(f"  Val  : {len(val_dataset)} clips ({val_ko} knock_on)")
+        print(f"  Val:   {len(val_dataset)} clips ({val_ko} knock_on)")
 
-        # ── Fresh model for each fold ──────────────────────────────
+        # fresh model per fold
         model = create_model(num_classes=2, pretrained=True, freeze_early=True)
         model = model.to(device)
 
-        # ── Optimiser & loss with label smoothing ──────────────────
         criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
         optimizer = torch.optim.AdamW(
             filter(lambda p: p.requires_grad, model.parameters()),
@@ -204,7 +229,6 @@ def main():
             optimizer, mode="max", patience=5, factor=0.5,
         )
 
-        # ── Training loop for this fold ────────────────────────────
         best_val_acc = 0.0
         best_preds, best_labels, best_probs = [], [], []
         history = {
@@ -244,7 +268,6 @@ def main():
             if v_acc > best_val_acc:
                 best_val_acc = v_acc
                 best_preds, best_labels, best_probs = v_preds, v_labels, v_probs
-                # Save best model only from best fold (overwritten later if better fold found)
                 torch.save({
                     "epoch": epoch,
                     "fold": fold_idx,
@@ -256,7 +279,7 @@ def main():
                     "frames_per_clip": args.frames,
                 }, SAVE_PATH)
 
-        # ── Collect fold results ───────────────────────────────────
+        # collect fold results
         _, best_prec, best_rec = compute_metrics(best_preds, best_labels)
         fold_results.append({
             "fold": fold_idx,
@@ -268,19 +291,16 @@ def main():
         all_fold_labels.extend(best_labels)
         all_fold_probs.extend(best_probs)
 
-        print(f"\n  Fold {fold_idx} Best — Acc: {best_val_acc:.1%}  "
-              f"Prec: {best_prec:.2f}  Rec: {best_rec:.2f}")
+        print(f"\n  Fold {fold_idx} best -> acc: {best_val_acc:.1%}, "
+              f"prec: {best_prec:.2f}, rec: {best_rec:.2f}")
 
-        # Per-fold plots
         os.makedirs(PLOT_DIR, exist_ok=True)
         _plot_fold_curves(history, fold_idx)
 
-    # ═══════════════════════════════════════════════════════════════
-    #  Cross-Validation Summary
-    # ═══════════════════════════════════════════════════════════════
-    accs  = [r["val_acc"]   for r in fold_results]
+    # cv summary
+    accs = [r["val_acc"] for r in fold_results]
     precs = [r["precision"] for r in fold_results]
-    recs  = [r["recall"]    for r in fold_results]
+    recs = [r["recall"] for r in fold_results]
 
     print(f"\n{'='*70}")
     print(f"  {args.folds}-FOLD CROSS-VALIDATION RESULTS")
@@ -289,68 +309,21 @@ def main():
         print(f"  Fold {r['fold']}: Acc={r['val_acc']:.4f}  "
               f"Prec={r['precision']:.4f}  Rec={r['recall']:.4f}")
     print(f"{'-'*70}")
-    print(f"  Mean Accuracy  : {np.mean(accs):.4f} ± {np.std(accs):.4f}")
-    print(f"  Mean Precision : {np.mean(precs):.4f} ± {np.std(precs):.4f}")
-    print(f"  Mean Recall    : {np.mean(recs):.4f} ± {np.std(recs):.4f}")
+    print(f"  Mean Accuracy:  {np.mean(accs):.4f} +/- {np.std(accs):.4f}")
+    print(f"  Mean Precision: {np.mean(precs):.4f} +/- {np.std(precs):.4f}")
+    print(f"  Mean Recall:    {np.mean(recs):.4f} +/- {np.std(recs):.4f}")
     print(f"{'='*70}")
 
-    # ── Aggregate plots across all folds ───────────────────────────
     plot_confusion_matrix(all_fold_preds, all_fold_labels)
     roc_auc = plot_roc_curve(all_fold_labels, all_fold_probs)
 
-    print(f"\n  Aggregate Classification Report (all folds):")
+    print(f"\nClassification Report (all folds aggregated):")
     print(classification_report(all_fold_labels, all_fold_preds, target_names=CLASS_NAMES))
 
-    print(f"  Aggregate AUC  : {roc_auc:.4f}")
-    print(f"  Model saved to : {SAVE_PATH}")
-    print(f"  Plots saved to : {PLOT_DIR}")
-    print(f"\nNext step -> python inference.py --video path/to/video.mp4")
-
-
-def _plot_fold_curves(history, fold_idx):
-    """Save loss & accuracy curves for a single fold."""
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
-    ax1.plot(history["epoch"], history["train_loss"], label="Train Loss", marker="o", markersize=2)
-    ax1.plot(history["epoch"], history["val_loss"],   label="Val Loss",   marker="s", markersize=2)
-    ax1.set_xlabel("Epoch"); ax1.set_ylabel("Loss")
-    ax1.set_title(f"Fold {fold_idx} — Loss"); ax1.legend(); ax1.grid(True, alpha=0.3)
-
-    ax2.plot(history["epoch"], history["train_acc"], label="Train Acc", marker="o", markersize=2)
-    ax2.plot(history["epoch"], history["val_acc"],   label="Val Acc",   marker="s", markersize=2)
-    ax2.set_xlabel("Epoch"); ax2.set_ylabel("Accuracy")
-    ax2.set_title(f"Fold {fold_idx} — Accuracy"); ax2.legend(); ax2.grid(True, alpha=0.3)
-
-    plt.tight_layout()
-    plt.savefig(os.path.join(PLOT_DIR, f"fold_{fold_idx}_curves.png"), dpi=150)
-    plt.close()
-    print(f"  -> Saved fold_{fold_idx}_curves.png")
-
-
-# ═══════════════════════════════════════════════════════════════════
-#  Helper:  Subset wrapper that toggles augmentation
-# ═══════════════════════════════════════════════════════════════════
-class _SubsetWithAugment(torch.utils.data.Dataset):
-    """
-    Wraps a RugbyClipDataset + a list of indices so that we can
-    enable augmentation for train but disable it for val, even
-    though both share the same underlying dataset object.
-    """
-
-    def __init__(self, full_dataset, indices, augment):
-        self.full_dataset = full_dataset
-        self.indices = indices
-        self.augment = augment
-
-    def __len__(self):
-        return len(self.indices)
-
-    def __getitem__(self, idx):
-        # Temporarily set augmentation flag
-        original = self.full_dataset.augment
-        self.full_dataset.augment = self.augment
-        item = self.full_dataset[self.indices[idx]]
-        self.full_dataset.augment = original
-        return item
+    print(f"  AUC: {roc_auc:.4f}")
+    print(f"  Model saved to: {SAVE_PATH}")
+    print(f"  Plots saved to: {PLOT_DIR}")
+    print(f"\nRun inference with: python inference.py --video path/to/video.mp4")
 
 
 if __name__ == "__main__":

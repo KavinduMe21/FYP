@@ -12,18 +12,14 @@ import torchvision.models.video as video_models
 from collections import deque
 from ultralytics import YOLO
 
-# --- ADD THIS TO FIND 'src' FOLDER ---
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-# -------------------------------------
 
 from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="Knock-On Detection API", version="1.0.0")
 
-# ═══════════════════════════════════════════════════════════════════
-#  Security Configuration
-# ═══════════════════════════════════════════════════════════════════
+# config
 API_KEY = os.environ.get("API_KEY", "knock-on-detect-2026")
 ALLOWED_ORIGINS = os.environ.get("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000").split(",")
 MAX_FILE_SIZE_MB = 100
@@ -38,23 +34,19 @@ app.add_middleware(
 )
 
 
-# ── API Key verification ───────────────────────────────────────────
 async def verify_api_key(x_api_key: str = Header(None)):
     if x_api_key is None or x_api_key != API_KEY:
         raise HTTPException(status_code=401, detail="Invalid or missing API key")
     return x_api_key
 
 
-# ── File validation helpers ────────────────────────────────────────
 def sanitize_filename(filename: str) -> str:
-    """Strip path components and generate a safe temp filename."""
     safe_name = os.path.basename(filename)
     _, ext = os.path.splitext(safe_name)
     return f"temp_{uuid.uuid4().hex}{ext}"
 
 
 def validate_video_file(filename: str, file_size: int):
-    """Validate file extension and size."""
     _, ext = os.path.splitext(filename.lower())
     if ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(
@@ -69,9 +61,7 @@ def validate_video_file(filename: str, file_size: int):
 
 src_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-# ═══════════════════════════════════════════════════════════════════
-#  1. Load YOLO Ball Detector
-# ═══════════════════════════════════════════════════════════════════
+# load yolo
 model_paths = [
     os.path.join(src_dir, 'best.pt')
 ]
@@ -95,9 +85,7 @@ if model_path:
 else:
     print("Warning: No YOLO model found.")
 
-# ═══════════════════════════════════════════════════════════════════
-#  2. Load R3D-18 Knock-On Classifier
-# ═══════════════════════════════════════════════════════════════════
+# load classifier
 CLASSIFIER_PATH = os.path.join(src_dir, 'knock_on_classifier.pt')
 CLASS_NAMES = ["normal_play", "knock_on"]
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -124,11 +112,7 @@ else:
     print("Warning: R3D-18 classifier not found at", CLASSIFIER_PATH)
 
 
-# ═══════════════════════════════════════════════════════════════════
-#  Helper functions (from inference.py)
-# ═══════════════════════════════════════════════════════════════════
 def detect_ball(yolo, frame, ball_ids, conf=0.25):
-    """Run YOLO on a single frame. Returns (cx, cy, w, h, conf) or None."""
     results = yolo(frame, conf=conf, verbose=False, classes=ball_ids)
     boxes = results[0].boxes
     if len(boxes) == 0:
@@ -144,11 +128,6 @@ def detect_ball(yolo, frame, ball_ids, conf=0.25):
 
 
 def check_ball_drop(ball_history, frame_h):
-    """
-    Analyse ball positions across the 16-frame window to detect a
-    ball-drop pattern consistent with a knock-on.
-    Returns (is_ball_drop, reason_str)
-    """
     n = len(ball_history)
     if n == 0:
         return False, "no_ball_data"
@@ -163,7 +142,7 @@ def check_ball_drop(ball_history, frame_h):
     first_ys = [b[1] for b in first_half if b is not None]
     second_ys = [b[1] for b in second_half if b is not None]
 
-    # Pattern 1: Ball visible then disappears with downward trend
+    # visible then gone + dropping
     if first_visible >= half * 0.5 and second_visible <= half * 0.25:
         if len(first_ys) >= 2:
             early_y = np.mean(first_ys[:len(first_ys) // 2]) if len(first_ys) >= 2 else first_ys[0]
@@ -171,7 +150,7 @@ def check_ball_drop(ball_history, frame_h):
             if late_y > early_y + frame_h * 0.02:
                 return True, "ball_dropped_then_lost"
 
-    # Pattern 2: Ball drops significantly (y increases)
+    # big y drop
     if first_ys and second_ys:
         avg_y_first = np.mean(first_ys)
         avg_y_second = np.mean(second_ys)
@@ -179,7 +158,7 @@ def check_ball_drop(ball_history, frame_h):
         if drop > frame_h * 0.12:
             return True, "ball_dropped"
 
-    # Pattern 3: Ball was visible then lost
+    # visible then lost
     if first_visible >= half * 0.5 and second_visible <= half * 0.25:
         return True, "ball_lost_after_contact"
 
@@ -187,7 +166,6 @@ def check_ball_drop(ball_history, frame_h):
 
 
 def preprocess_clip(frames, frame_size=224):
-    """Convert a list of 16 BGR frames into a model-ready tensor."""
     processed = []
     for f in frames:
         f = cv2.resize(f, (frame_size, frame_size))
@@ -211,12 +189,10 @@ async def detect_knock_on(file: UploadFile = File(...), api_key: str = Depends(v
     if classifier is None:
         raise HTTPException(status_code=503, detail="R3D-18 knock-on classifier is not loaded.")
 
-    # ── Validate uploaded file ─────────────────────────────────────
     contents = await file.read()
     validate_video_file(file.filename, len(contents))
     await file.seek(0)
 
-    # ── Save with sanitized filename ───────────────────────────────
     temp_filename = sanitize_filename(file.filename)
     with open(temp_filename, "wb") as buffer:
         buffer.write(contents)
@@ -230,7 +206,6 @@ async def detect_knock_on(file: UploadFile = File(...), api_key: str = Depends(v
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         frame_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-        # ── Sliding window settings (same as inference.py) ─────────
         BUFFER_SIZE = 24
         STRIDE = 4
         COOLDOWN_MAX = 90
@@ -252,14 +227,13 @@ async def detect_knock_on(file: UploadFile = File(...), api_key: str = Depends(v
             frame_count += 1
             frame_buffer.append(frame.copy())
 
-            # ── Stage 1: YOLO ball detection on every frame ────────
             current_ball = detect_ball(model, frame, target_classes, conf=0.25)
             ball_buffer.append(current_ball)
 
             if cooldown > 0:
                 cooldown -= 1
 
-            # ── Stage 2: R3D-18 + ball-drop gate ──────────────────
+            # classify
             if (frame_count % STRIDE == 0
                     and frame_count > BUFFER_SIZE
                     and len(frame_buffer) >= BUFFER_SIZE
@@ -276,11 +250,11 @@ async def detect_knock_on(file: UploadFile = File(...), api_key: str = Depends(v
                 if confidence >= THRESHOLD:
                     knock_reason = ""
 
-                    # High confidence (>=90%) — trust R3D-18 directly
+                    # high conf, skip ball check
                     if confidence >= 0.90:
                         knock_reason = "high_confidence"
                     else:
-                        # Borderline — use ball-drop to verify
+                        # borderline, verify with ball
                         is_drop, ball_reason = check_ball_drop(
                             list(ball_buffer), frame_h
                         )
@@ -305,7 +279,6 @@ async def detect_knock_on(file: UploadFile = File(...), api_key: str = Depends(v
                         }
                         events.append(event)
 
-                        # Capture evidence image on first detection
                         if detected_image_base64 is None:
                             results = model(frame, conf=0.25, verbose=False, classes=target_classes)
                             annotated_frame = results[0].plot()
@@ -314,10 +287,8 @@ async def detect_knock_on(file: UploadFile = File(...), api_key: str = Depends(v
 
         cap.release()
 
-        # ── Build detected_detail ──────────────────────────────────
         is_knock_on = len(events) > 0
 
-        # Map technical reason codes to human-readable descriptions
         REASON_LABELS = {
             "ball_dropped": "Handling Error - Ball dropped toward the ground",
             "ball_dropped_then_lost": "Handling Error - Ball dropped then lost from view",
@@ -326,11 +297,9 @@ async def detect_knock_on(file: UploadFile = File(...), api_key: str = Depends(v
         }
 
         if is_knock_on:
-            # Use the first detection's reason as the primary detail
             first_reason = events[0]["reason"]
             detected_detail = REASON_LABELS.get(first_reason, "Handling Error")
 
-            # Build full list of reasons for all events
             reason_summary = []
             for e in events:
                 label = REASON_LABELS.get(e["reason"], "Handling Error")
@@ -363,7 +332,6 @@ async def detect_knock_on(file: UploadFile = File(...), api_key: str = Depends(v
         return {"error": str(e)}
 
     finally:
-        # 4. Cleanup
         if os.path.exists(temp_filename):
             try:
                 os.remove(temp_filename)
@@ -372,5 +340,4 @@ async def detect_knock_on(file: UploadFile = File(...), api_key: str = Depends(v
 
 if __name__ == "__main__":
     import uvicorn
-    # Run slightly differently so it works as a script
     uvicorn.run(app, host="127.0.0.1", port=8000)

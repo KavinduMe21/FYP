@@ -1,0 +1,9 @@
+gradio==4.44.1
+huggingface_hub==0.19.4
+ultralytics
+opencv-python-headless
+numpy
+torch
+torchvision
+pillow
+pyyaml
